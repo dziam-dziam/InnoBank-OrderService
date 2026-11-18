@@ -1,0 +1,4 @@
+databaseChangeLog:
+  - include:
+      file: changes/000.00.02/changelog-orders-schema.yaml
+      relativeToChangelogFile: true
