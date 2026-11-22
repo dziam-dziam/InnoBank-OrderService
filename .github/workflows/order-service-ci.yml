@@ -1,0 +1,46 @@
+name: Order Service CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-image:
+    name: Build, test, and package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build application
+        run: bash ./gradlew --no-daemon --console=plain bootJar
+
+      - name: Run tests
+        run: bash ./gradlew --no-daemon --console=plain test integrationTest
+
+      - name: Build and export Docker image
+        run: |
+          image="innobank-order-service:$GITHUB_SHA"
+          docker build --tag "$image" .
+          docker image save --output "$RUNNER_TEMP/order-service-image.tar" "$image"
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v7
+        with:
+          name: order-service-image-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/order-service-image.tar
+          if-no-files-found: error

@@ -25,6 +25,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.security:spring-security-oauth2-resource-server'
     implementation 'org.mapstruct:mapstruct:1.6.3'
+    implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
     runtimeOnly 'org.postgresql:postgresql'
 
     compileOnly 'org.projectlombok:lombok'
@@ -36,6 +37,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-liquibase-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.wiremock:wiremock-standalone:3.13.2'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly 'com.h2database:h2'
@@ -43,5 +47,19 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'postgres-integration'
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs the Order Service integration tests with PostgreSQL and WireMock.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    javaLauncher = tasks.named('test', Test).flatMap { it.javaLauncher }
+    shouldRunAfter tasks.named('test')
+    useJUnitPlatform {
+        includeTags 'postgres-integration'
+    }
 }
