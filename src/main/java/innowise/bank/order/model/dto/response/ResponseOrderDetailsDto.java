@@ -9,6 +9,7 @@ public record ResponseOrderDetailsDto(
         String status,
         BigDecimal totalPrice,
         boolean deleted,
-        List<ResponseOrderItemDto> items
+        List<ResponseOrderItemDto> items,
+        ResponseUserDto user
 ) {
 }

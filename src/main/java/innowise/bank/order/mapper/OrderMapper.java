@@ -2,10 +2,13 @@ package innowise.bank.order.mapper;
 
 
 import innowise.bank.order.model.dto.request.CreateOrderDto;
+import innowise.bank.order.model.dto.request.OrderLineDto;
 import innowise.bank.order.model.dto.request.UpdateOrderDto;
 import innowise.bank.order.model.dto.response.ResponseOrderDetailsDto;
 import innowise.bank.order.model.dto.response.ResponseOrderDto;
 import innowise.bank.order.model.dto.response.ResponseOrderItemDto;
+import innowise.bank.order.model.dto.response.ResponseUserDto;
+import innowise.bank.order.model.entity.ItemEntity;
 import innowise.bank.order.model.entity.OrderEntity;
 import innowise.bank.order.model.entity.OrderItemEntity;
 import org.mapstruct.Mapper;
@@ -20,21 +23,28 @@ import java.util.List;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface OrderMapper {
 
-    @Mapping(target = "userId", source = "userId")
-    ResponseOrderDto toDto(OrderEntity entity);
+    @Mapping(target = "id", source = "entity.id")
+    @Mapping(target = "user", source = "user")
+    ResponseOrderDto toDto(OrderEntity entity, ResponseUserDto user);
 
-    @Mapping(target = "userId", source = "userId")
-    @Mapping(target = "items", source = "orderItems")
-    ResponseOrderDetailsDto toDetailsDto(OrderEntity entity);
+    @Mapping(target = "id", source = "entity.id")
+    @Mapping(target = "items", source = "entity.orderItems")
+    @Mapping(target = "user", source = "user")
+    ResponseOrderDetailsDto toDetailsDto(OrderEntity entity, ResponseUserDto user);
 
     @Mapping(target = "itemId", source = "item.id")
     @Mapping(target = "itemName", source = "item.name")
     ResponseOrderItemDto toDto(OrderItemEntity entity);
 
     @BeanMapping(ignoreByDefault = true)
-    @Mapping(target = "status", source = "status")
-    @Mapping(target = "userId", source = "userId")
-    OrderEntity toEntity(CreateOrderDto dto);
+    @Mapping(target = "status", source = "dto.status")
+    @Mapping(target = "userId", source = "user.id")
+    OrderEntity toEntity(CreateOrderDto dto, ResponseUserDto user);
+
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "quantity", source = "line.quantity")
+    @Mapping(target = "item", source = "item")
+    OrderItemEntity toEntity(OrderLineDto line, ItemEntity item);
 
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "status", source = "status")
