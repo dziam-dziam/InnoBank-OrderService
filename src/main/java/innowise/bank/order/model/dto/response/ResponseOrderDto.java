@@ -7,6 +7,7 @@ public record ResponseOrderDto(
         Long userId,
         String status,
         BigDecimal totalPrice,
-        boolean deleted
+        boolean deleted,
+        ResponseUserDto user
 ) {
 }

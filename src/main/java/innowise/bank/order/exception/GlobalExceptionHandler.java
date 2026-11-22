@@ -12,8 +12,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler(UserNotFoundByIdException.class)
-    public ProblemDetail handleUserNotFound(UserNotFoundByIdException exception) {
+    @ExceptionHandler({UserNotFoundByIdException.class, UserNotFoundByEmailException.class})
+    public ProblemDetail handleUserNotFound(RuntimeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 

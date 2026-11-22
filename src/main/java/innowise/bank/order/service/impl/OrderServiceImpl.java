@@ -4,13 +4,13 @@ package innowise.bank.order.service.impl;
 import innowise.bank.order.client.UserDirectoryClient;
 import innowise.bank.order.exception.ItemNotFoundByIdException;
 import innowise.bank.order.exception.OrderNotFoundByIdException;
-import innowise.bank.order.exception.UserNotFoundByIdException;
 import innowise.bank.order.mapper.OrderMapper;
 import innowise.bank.order.model.dto.request.CreateOrderDto;
 import innowise.bank.order.model.dto.request.OrderLineDto;
 import innowise.bank.order.model.dto.request.UpdateOrderDto;
 import innowise.bank.order.model.dto.response.ResponseOrderDetailsDto;
 import innowise.bank.order.model.dto.response.ResponseOrderDto;
+import innowise.bank.order.model.dto.response.ResponseUserDto;
 import innowise.bank.order.model.entity.ItemEntity;
 import innowise.bank.order.model.entity.OrderEntity;
 import innowise.bank.order.model.entity.OrderItemEntity;
@@ -50,15 +50,16 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional("transactionManager")
     public ResponseOrderDetailsDto createOrder(CreateOrderDto dto) {
-        if (!users.existsById(dto.userId())) {
-            throw new UserNotFoundByIdException(dto.userId());
+        ResponseUserDto user = dto.email() == null ? users.getById(dto.userId()) : users.getByEmail(dto.email());
+        if (dto.userId() != null && !dto.userId().equals(user.id())) {
+            throw new IllegalArgumentException("User ID and email refer to different users");
         }
 
-        OrderEntity order = orderMapper.toEntity(dto);
+        OrderEntity order = orderMapper.toEntity(dto, user);
         addOrderItems(order, dto.items());
 
         OrderEntity savedOrder = orderRepository.saveAndFlush(order);
-        return orderMapper.toDetailsDto(savedOrder);
+        return orderMapper.toDetailsDto(savedOrder, user);
     }
 
     @Override
@@ -66,7 +67,7 @@ public class OrderServiceImpl implements OrderService {
         OrderEntity order = orderRepository.findDetailsById(id)
                 .orElseThrow(() -> new OrderNotFoundByIdException(id));
 
-        return orderMapper.toDetailsDto(order);
+        return orderMapper.toDetailsDto(order, users.getById(order.getUserId()));
     }
 
     @Override
@@ -78,14 +79,21 @@ public class OrderServiceImpl implements OrderService {
     public Page<ResponseOrderDto> getAllOrders(
             Instant createdFrom, Instant createdTo, Collection<String> statuses, Pageable pageable
     ) {
+        Map<Long, ResponseUserDto> usersById = new HashMap<>();
         return orderRepository.findAll(OrderSpecifications.filter(createdFrom, createdTo, statuses), pageable)
-                .map(orderMapper::toDto);
+                .map(order -> orderMapper.toDto(order, usersById.computeIfAbsent(order.getUserId(), users::getById)));
     }
 
     @Override
     public List<ResponseOrderDto> getOrdersByUserId(Long userId) {
-        return orderRepository.findAllByUserIdOrderByIdAsc(userId).stream()
-                .map(orderMapper::toDto)
+        List<OrderEntity> orders = orderRepository.findAllByUserIdOrderByIdAsc(userId);
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+
+        ResponseUserDto user = users.getById(userId);
+        return orders.stream()
+                .map(order -> orderMapper.toDto(order, user))
                 .toList();
     }
 
@@ -93,6 +101,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional("transactionManager")
     public ResponseOrderDetailsDto updateOrder(Long id, UpdateOrderDto dto) {
         OrderEntity order = findForUpdate(id);
+        ResponseUserDto user = users.getById(order.getUserId());
         orderMapper.updateEntity(dto, order);
 
         if (dto.items() != null) {
@@ -102,7 +111,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         orderRepository.flush();
-        return orderMapper.toDetailsDto(order);
+        return orderMapper.toDetailsDto(order, user);
     }
 
     @Override
@@ -132,9 +141,7 @@ public class OrderServiceImpl implements OrderService {
                 throw new ItemNotFoundByIdException(line.itemId());
             }
 
-            OrderItemEntity position = new OrderItemEntity();
-            position.setItem(item);
-            position.setQuantity(line.quantity());
+            OrderItemEntity position = orderMapper.toEntity(line, item);
             order.addOrderItem(position);
 
             BigDecimal linePrice = item.getPrice().multiply(BigDecimal.valueOf(line.quantity()));
