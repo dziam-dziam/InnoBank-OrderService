@@ -1,0 +1,41 @@
+services:
+  order-service:
+    image: innobank-order-service:local
+    build: .
+    ports:
+      - "127.0.0.1:${ORDER_PORT:-8083}:8083"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/orders
+      DB_USER: orders
+      DB_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+      AUTH_SERVICE_URL: "${AUTH_SERVICE_URL:-http://host.docker.internal:8082}"
+      USER_SERVICE_URL: "${USER_SERVICE_URL:-http://host.docker.internal:8081}"
+      ORDER_SERVICE_INTERNAL_PASSWORD: "${ORDER_SERVICE_INTERNAL_PASSWORD:?Set ORDER_SERVICE_INTERNAL_PASSWORD in .env}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8083"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+    volumes:
+      - order-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  order-data:
